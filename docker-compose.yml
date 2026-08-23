@@ -1,0 +1,63 @@
+# Entorno LOCAL de desarrollo: Postgres + n8n.
+#
+# Esto NO es lo que corre en producción para la app en sí (la app sigue
+# siendo estática, servida por Cloudflare/Vercel/Netlify, ver README.md).
+# Esto es para construir y probar los workflows de n8n descritos en
+# API-CONTRACT.md contra una base de datos real, antes de apuntar la app
+# a una instancia de n8n ya desplegada.
+#
+# Uso:
+#   1. cp docker.env.example .env.docker   (y edita las contraseñas)
+#   2. docker compose --env-file .env.docker up -d
+#      (el flag --env-file es obligatorio: Docker Compose solo carga
+#      automáticamente un archivo llamado ".env", no ".env.docker" — sin
+#      el flag, las variables ${...} de abajo quedan vacías)
+#   3. Postgres queda en localhost:5432 · n8n en http://localhost:5678
+#   4. Dentro de n8n (primer login te pide crear cuenta), agrega una
+#      credencial "Postgres" con host=postgres (nombre del servicio, no
+#      localhost), puerto=5432, database/user/password = los mismos que
+#      pusiste en .env.docker.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: meals_postgres
+    restart: unless-stopped
+    env_file: .env.docker
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: meals_n8n
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env.docker
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD}
+      - GENERIC_TIMEZONE=America/Mexico_City
+      - N8N_SECURE_COOKIE=false
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  pgdata:
+  n8n_data:

@@ -1,0 +1,17 @@
+{
+  "name": "meals-is-ready-compras",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "node scripts/build.mjs",
+    "build:vite": "vite build",
+    "preview": "vite preview",
+    "dev:auth": "npm run build && wrangler pages dev dist --binding SITE_PASSWORD=changeme"
+  },
+  "devDependencies": {
+    "vite": "^5.4.10",
+    "wrangler": "^3.90.0"
+  }
+}
